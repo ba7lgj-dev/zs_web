@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>学习进度概览</title>
+    <style>
+      body {
+        font-family: "Microsoft YaHei", sans-serif;
+        margin: 0;
+        background: #f5f6f8;
+        color: #1f2d3d;
+      }
+
+      header {
+        background: linear-gradient(120deg, #3757ff, #64a0ff);
+        color: #fff;
+        padding: 28px 36px;
+        box-shadow: 0 4px 16px rgba(14, 42, 123, 0.25);
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0.06em;
+      }
+
+      main {
+        padding: 36px;
+      }
+
+      .course-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+      }
+
+      .course-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 22px 24px;
+        box-shadow: 0 18px 48px rgba(53, 84, 209, 0.08);
+        border: 1px solid rgba(55, 87, 255, 0.12);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .course-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 18px 52px rgba(53, 84, 209, 0.16);
+      }
+
+      .course-card h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        color: #314376;
+      }
+
+      .course-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: #5c6c88;
+        margin-bottom: 12px;
+      }
+
+      .progress-bar {
+        height: 8px;
+        background: #ebeff5;
+        border-radius: 99px;
+        overflow: hidden;
+      }
+
+      .progress-indicator {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(135deg, #3fa6ff, #7a5bff);
+        transition: width 0.3s ease;
+      }
+
+      .empty-message {
+        text-align: center;
+        color: #7c889f;
+        padding: 64px 0;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>课程学习概览</h1>
+    </header>
+    <main>
+      <section class="course-list" id="courseGrid"></section>
+      <p class="empty-message" id="blankSlate" hidden>暂无课程数据</p>
+    </main>
+
+    <script>
+      const pageState = {
+        courseEntries: [],
+        containerEl: document.getElementById("courseGrid"),
+        emptyNoticeEl: document.getElementById("blankSlate"),
+      };
+
+      const interpretProgress = (rawSchedule) => {
+        if (!rawSchedule || Number.isNaN(Number(rawSchedule))) {
+          return 0;
+        }
+        const adjustedValue = Math.max(0, Math.min(Number(rawSchedule), 100));
+        return Math.round(adjustedValue);
+      };
+
+      const hydrateCourseDataset = () => {
+        try {
+          const storagePayload = localStorage.getItem("chaoxingCourseCollection");
+          if (!storagePayload) {
+            pageState.courseEntries = [];
+            return;
+          }
+
+          const parsedRecords = JSON.parse(storagePayload);
+          if (Array.isArray(parsedRecords)) {
+            pageState.courseEntries = parsedRecords.map((entry) => ({
+              titleLabel: entry.title || "未命名课程",
+              mentorName: entry.teacher || "匿名教师",
+              scheduleRatio: interpretProgress(entry.schedule),
+            }));
+          }
+        } catch (errorInstance) {
+          console.warn("无法从本地存储解析课程数据", errorInstance);
+          pageState.courseEntries = [];
+        }
+      };
+
+      const paintCourseCards = (courseCollection) => {
+        if (!courseCollection.length) {
+          pageState.containerEl.innerHTML = "";
+          pageState.containerEl.setAttribute("hidden", "hidden");
+          pageState.emptyNoticeEl.removeAttribute("hidden");
+          return;
+        }
+
+        pageState.emptyNoticeEl.setAttribute("hidden", "hidden");
+        pageState.containerEl.removeAttribute("hidden");
+
+        const fragment = document.createDocumentFragment();
+
+        courseCollection.forEach((courseItem) => {
+          const itemCard = document.createElement("article");
+          itemCard.className = "course-card";
+
+          const titleNode = document.createElement("h2");
+          titleNode.textContent = courseItem.titleLabel;
+
+          const metaNode = document.createElement("div");
+          metaNode.className = "course-meta";
+          metaNode.innerHTML = `
+            <span>${courseItem.mentorName}</span>
+            <span>${courseItem.scheduleRatio}%</span>
+          `;
+
+          const progressTrack = document.createElement("div");
+          progressTrack.className = "progress-bar";
+
+          const progressGauge = document.createElement("div");
+          progressGauge.className = "progress-indicator";
+          progressGauge.style.width = `${courseItem.scheduleRatio}%`;
+
+          progressTrack.appendChild(progressGauge);
+          itemCard.appendChild(titleNode);
+          itemCard.appendChild(metaNode);
+          itemCard.appendChild(progressTrack);
+
+          fragment.appendChild(itemCard);
+        });
+
+        pageState.containerEl.innerHTML = "";
+        pageState.containerEl.appendChild(fragment);
+      };
+
+      const bootstrapPage = () => {
+        hydrateCourseDataset();
+        paintCourseCards(pageState.courseEntries);
+      };
+
+      document.addEventListener("DOMContentLoaded", bootstrapPage);
+    </script>
+  </body>
+</html>
